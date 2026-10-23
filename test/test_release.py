@@ -1,4 +1,5 @@
 import copy
+import io
 import json
 import tempfile
 import unittest
@@ -71,6 +72,25 @@ class ReleaseResourceTests(unittest.TestCase):
 
 
 class RuntimePatcherTests(unittest.TestCase):
+    def test_permission_error_reports_the_actual_path(self):
+        error = PermissionError(13, 'Access denied', 'temporary-source.bundle')
+        with patch.object(runtime_patcher, 'normalize_game', return_value=Path('game')), \
+                patch.object(runtime_patcher, 'run_patch', side_effect=error), \
+                patch('sys.stderr', new_callable=io.StringIO) as stderr, \
+                patch('sys.stdout', new_callable=io.StringIO):
+            self.assertEqual(runtime_patcher.main(['--game', 'game', '--check']), 1)
+            self.assertIn('temporary-source.bundle', stderr.getvalue())
+
+    def test_file_lock_is_not_reported_as_missing_admin_rights(self):
+        error = PermissionError(13, 'Sharing violation', 'temporary-source.bundle')
+        error.winerror = 32
+        with patch.object(runtime_patcher, 'normalize_game', return_value=Path('game')), \
+                patch.object(runtime_patcher, 'run_patch', side_effect=error), \
+                patch('sys.stderr', new_callable=io.StringIO) as stderr:
+            self.assertEqual(runtime_patcher.main(['--game', 'game', '--check']), 1)
+            self.assertIn('다른 프로세스', stderr.getvalue())
+            self.assertNotIn('관리자 권한', stderr.getvalue())
+
     def test_steam_library_vdf_paths_and_deduplication(self):
         root = ROOT / 'artifacts/test-tmp'
         root.mkdir(parents=True, exist_ok=True)

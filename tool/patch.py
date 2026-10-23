@@ -86,7 +86,9 @@ def game_root(path: Path) -> Path:
 
 
 def object_trees(path: Path):
-    env = UnityPy.load(str(path))
+    # Loading a filename leaves UnityPy file readers alive until collection.
+    # Use bytes so Windows can remove the build's temporary files immediately.
+    env = UnityPy.load(path.read_bytes())
     for obj in env.objects:
         if obj.type.name == 'MonoBehaviour':
             # Do not silently skip unreadable localization objects.
@@ -202,7 +204,7 @@ def save_bundle(env, output: Path) -> None:
 
 def build_strings(game: Path, output: Path, overrides: dict) -> dict:
     source_tables = tables(game / FILES['english'])
-    env = UnityPy.load(str(game / FILES['strings']))
+    env = UnityPy.load((game / FILES['strings']).read_bytes())
     targets = {}
     for obj in env.objects:
         if obj.type.name != 'MonoBehaviour':
@@ -254,7 +256,7 @@ def build_strings(game: Path, output: Path, overrides: dict) -> dict:
 
 
 def build_fonts(game: Path, output: Path, font_dir: Path) -> dict:
-    env = UnityPy.load(str(game / FILES['fonts']))
+    env = UnityPy.load((game / FILES['fonts']).read_bytes())
     font_ids, tmp_fonts, atlas_ids = {}, {}, set()
     font_hashes = {}
     for obj in env.objects:
@@ -322,7 +324,7 @@ def build_fonts(game: Path, output: Path, font_dir: Path) -> dict:
         raise CompatibilityError('SDF 아틀라스 쌍을 식별하지 못했습니다.')
     save_bundle(env, output)
     verified_fonts, verified_tmp, verified_atlases = set(), 0, 0
-    check = UnityPy.load(str(output))
+    check = UnityPy.load(output.read_bytes())
     for obj in check.objects:
         if obj.type.name == 'Font' and int(obj.path_id) in font_ids:
             tree = obj.read_typetree()
@@ -348,7 +350,7 @@ def build_fonts(game: Path, output: Path, font_dir: Path) -> dict:
 
 
 def build_locales(game: Path, output: Path) -> None:
-    env = UnityPy.load(str(game / FILES['locales']))
+    env = UnityPy.load((game / FILES['locales']).read_bytes())
     count = 0
     for obj in env.objects:
         if obj.type.name != 'MonoBehaviour':

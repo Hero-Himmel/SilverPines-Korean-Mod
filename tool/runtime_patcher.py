@@ -99,7 +99,9 @@ def run_patch(game: Path, *, apply: bool, temporary_root: Path | None = None) ->
         print('한국어 문자열과 폰트를 생성하고 있습니다...', flush=True)
         report = build(base / 'source', base / 'patch', resource / 'translations.json',
                        resource / 'source-manifest.json', resource / 'fonts')
+        print('게임 파일을 설치하고 있습니다...' if apply else '생성된 패치와 게임 파일을 검증하고 있습니다...', flush=True)
         installer.install(game, base / 'patch', apply=apply)
+        print('임시 파일을 정리하고 있습니다...', flush=True)
     return {'applied': apply, 'files': len(report['outputs']),
             'release': summary['release'], 'translation_summary': report['translation_summary']}
 
@@ -172,8 +174,12 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print('패치 적용 완료. 게임 언어에서 한국어를 선택하세요.')
         result = 0
-    except PermissionError:
-        print('게임 폴더에 쓸 권한이 없습니다. 패처를 관리자 권한으로 실행해 주세요.', file=sys.stderr)
+    except PermissionError as error:
+        print(f'파일 접근 오류: {error}', file=sys.stderr)
+        if getattr(error, 'winerror', None) in (32, 33):
+            print('다른 프로세스가 파일을 사용 중입니다. 게임을 종료하고 다시 실행해 주세요.', file=sys.stderr)
+        else:
+            print('표시된 경로의 접근 권한을 확인해 주세요. 게임 설치 폴더의 쓰기 권한 문제라면 관리자 권한으로 실행해 주세요.', file=sys.stderr)
     except (CompatibilityError, OSError, ValueError, RuntimeError) as error:
         print(f'오류: {error}', file=sys.stderr)
     finally:
