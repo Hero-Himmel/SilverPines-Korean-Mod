@@ -3,7 +3,7 @@
   "game": "Silver Pines",
   "platform": "windows",
   "release": "26.10.16-a",
-  "prerelease": true,
+  "prerelease": false,
   "translation_stage": "draft",
   "entry_count": 3469
 }

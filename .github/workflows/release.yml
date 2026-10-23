@@ -96,6 +96,7 @@ jobs:
           files=(artifacts/release/*.zip artifacts/release/*.zip.sha256)
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${files[@]}" --clobber
+            gh release edit "$tag" --prerelease="$PRERELEASE"
           else
             flags=()
             if [[ "$PRERELEASE" == 'true' ]]; then

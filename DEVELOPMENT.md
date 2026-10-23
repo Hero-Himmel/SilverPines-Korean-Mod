@@ -146,7 +146,7 @@ python -m venv .venv
 - Pull Request: 테스트와 EXE/ZIP 빌드·검증 후 Actions 아티팩트만 생성합니다.
 
 버전의 단일 기준은 `resource/version.json`입니다. 현재 패치 버전은 `26.10.16-a`이고,
-번역 검수 중인 버전이므로 `prerelease: true`로 설정되어 있습니다. 버전은 게임 업데이트 날짜를 기준으로 한 `YY.MM.DD-차수` 형식이며, 게임의 공식 버전 번호와는 별개입니다.
+정식 릴리스로 배포하도록 `prerelease: false`로 설정되어 있습니다. 릴리스 표시는 번역 검수 완료 여부와 별개입니다. 버전은 게임 업데이트 날짜를 기준으로 한 `YY.MM.DD-차수` 형식이며, 게임의 공식 버전 번호와는 별개입니다.
 `release`를 바꾸면 ZIP 이름과 Release 태그가 함께 바뀝니다. 예를 들어 다음 태그가 대응합니다.
 
 ```text
