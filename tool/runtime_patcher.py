@@ -16,6 +16,29 @@ from . import install as installer
 from .patch import ROOT, CompatibilityError, build, game_root
 from .pristine import materialize
 from .release_config import load_version, validate_resources
+from .console_ui import (ProgressTimer, configure_console, format_duration,
+                         set_warning_color, restore_console_color, read_confirmation)
+
+
+def show_intro(release: str) -> None:
+    print(f'Silver Pines 한국어 패치 {release}\n')
+    color = set_warning_color()
+    try:
+        print('[주의 사항]')
+        print('이 MOD는 비공식 한글 패치입니다.')
+        print('게임을 종료한 뒤 진행해 주세요.')
+        print('원본은 백업하며, 원본 복구 메뉴로 되돌릴 수 있습니다.')
+        print('번역은 AI를 활용했습니다.')
+        print('- 오역, 문제는 Issue에 올려주세요.')
+        print('by. Himmel\n')
+    finally:
+        restore_console_color(color)
+
+
+def show_menu() -> None:
+    print('\n1. 한국어 패치 설치 / 업데이트')
+    print('2. 원본 파일 복구')
+    print('0. 종료\n')
 
 
 def steam_installations() -> list[Path]:
@@ -92,18 +115,25 @@ def run_patch(game: Path, *, apply: bool, temporary_root: Path | None = None) ->
     summary = validate_resources(resource)
     # Originals are read from the game or its verified backup. No original
     # game bytes or generated Unity assets are shipped in this application.
-    with tempfile.TemporaryDirectory(prefix='silverpines-ko-', dir=temporary_root) as temporary:
-        base = Path(temporary)
-        print('원본 파일과 백업을 확인하고 있습니다...', flush=True)
-        materialize(game, base / 'source', resource / 'source-manifest.json')
-        print('한국어 문자열과 폰트를 생성하고 있습니다...', flush=True)
-        report = build(base / 'source', base / 'patch', resource / 'translations.json',
-                       resource / 'source-manifest.json', resource / 'fonts')
-        print('게임 파일을 설치하고 있습니다...' if apply else '생성된 패치와 게임 파일을 검증하고 있습니다...', flush=True)
-        installer.install(game, base / 'patch', apply=apply)
-        print('임시 파일을 정리하고 있습니다...', flush=True)
+    progress = ProgressTimer()
+    progress.start()
+    try:
+        with tempfile.TemporaryDirectory(prefix='silverpines-ko-', dir=temporary_root) as temporary:
+            base = Path(temporary)
+            progress.stage('[1/4] 게임 원본과 패치 호환성을 확인하는 중...')
+            materialize(game, base / 'source', resource / 'source-manifest.json', quiet=True)
+            progress.stage('[2/4] 한글 문장과 폰트로 패치 파일을 생성하는 중...')
+            report = build(base / 'source', base / 'patch', resource / 'translations.json',
+                           resource / 'source-manifest.json', resource / 'fonts')
+            progress.stage('[3/4] 한글 패치를 게임 폴더에 적용하는 중...' if apply
+                           else '[3/4] 생성된 패치 파일을 검증하는 중...')
+            installer.install(game, base / 'patch', apply=apply)
+            progress.stage('[4/4] 임시 파일을 정리하는 중...')
+    finally:
+        elapsed = progress.stop()
     return {'applied': apply, 'files': len(report['outputs']),
-            'release': summary['release'], 'translation_summary': report['translation_summary']}
+            'release': summary['release'], 'translation_summary': report['translation_summary'],
+            'elapsed': elapsed}
 
 
 def self_test() -> dict:
@@ -122,6 +152,7 @@ def self_test() -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_console()
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, 'reconfigure'):
             stream.reconfigure(encoding='utf-8')
@@ -134,14 +165,38 @@ def main(argv: list[str] | None = None) -> int:
     modes.add_argument('--check', action='store_true', help='패치를 생성하고 검증 (설치하지 않음)')
     modes.add_argument('--restore', action='store_true', help='원본 게임 파일로 복구')
     modes.add_argument('--apply', action='store_true', help='확인 질문 없이 패치 적용')
+    modes.add_argument('--preview', action='store_true', help='게임 변경 없이 예상 화면 표시')
     args = parser.parse_args(argv)
-    interactive = not any((args.self_test, args.check, args.restore, args.apply))
+    interactive = not any((args.self_test, args.check, args.restore, args.apply, args.preview))
     result = 1
     try:
         if args.self_test:
             print(json.dumps(self_test(), ensure_ascii=False))
             return 0
-        print(f'Silver Pines 한국어 패치 {version["release"]}')
+        if args.preview:
+            show_intro(version['release'])
+            print('계속하시겠습니까?  1. Yes  2. No : 1')
+            print('\n기본 게임 경로 확인 완료.')
+            show_menu()
+            print('선택 [1]: 1\n')
+            for stage in ('[1/4] 게임 원본과 패치 호환성을 확인하는 중...',
+                          '[2/4] 한글 문장과 폰트로 패치 파일을 생성하는 중...',
+                          '[3/4] 한글 패치를 게임 폴더에 적용하는 중...',
+                          '[4/4] 임시 파일을 정리하는 중...'):
+                print(stage)
+            print('진행 시간: 00:08')
+            print('Done. 한글 패치 완료. (총 소요 시간: 00:08)')
+            print('게임 언어 설정에서 한국어를 선택하세요.\n')
+            print('계속하려면 Enter를 누르세요 . . .')
+            return 0
+        if interactive:
+            show_intro(version['release'])
+            if read_confirmation() != '1':
+                print('패치를 취소했습니다.')
+                return 0
+            print()
+        else:
+            print(f'Silver Pines 한국어 패치 {version["release"]}')
         game = args.game or find_game()
         if game is None and interactive:
             value = input('Carpenter.exe가 있는 게임 폴더를 입력하세요: ').strip().strip('"')
@@ -151,11 +206,9 @@ def main(argv: list[str] | None = None) -> int:
         if game is None:
             raise CompatibilityError('게임을 찾지 못했습니다. --game으로 설치 폴더를 지정하세요.')
         game = normalize_game(game)
+        print('게임 경로 확인 완료.' if args.game else '기본 게임 경로 확인 완료.')
         if interactive:
-            print(f'게임 폴더: {game}')
-            print('1. 한국어 패치 설치 / 업데이트')
-            print('2. 원본 파일 복구')
-            print('0. 종료')
+            show_menu()
             choice = input('선택 [1]: ').strip() or '1'
             if choice == '0':
                 return 0
@@ -164,15 +217,23 @@ def main(argv: list[str] | None = None) -> int:
             args.restore = choice == '2'
         if args.restore:
             check_game_closed()
-            files = installer.restore(game, apply=True)
-            print(f'원본 복구 완료: {len(files)}개 파일')
+            progress = ProgressTimer()
+            progress.start()
+            try:
+                progress.stage('[1/2] 원본 백업과 게임 파일을 확인하는 중...')
+                installer.restore(game, apply=False)
+                progress.stage('[2/2] 게임 원본을 복구하는 중...')
+                installer.restore(game, apply=True)
+            finally:
+                elapsed = progress.stop()
+            print(f'Done. 원본 복구 완료. (총 소요 시간: {format_duration(elapsed)})')
         else:
             report = run_patch(game, apply=not args.check)
-            print(json.dumps(report, ensure_ascii=False))
             if args.check:
                 print('검사 완료. 게임 파일은 변경하지 않았습니다.')
             else:
-                print('패치 적용 완료. 게임 언어에서 한국어를 선택하세요.')
+                print(f'Done. 한글 패치 완료. (총 소요 시간: {format_duration(report["elapsed"])})')
+                print('게임 언어 설정에서 한국어를 선택하세요.')
         result = 0
     except PermissionError as error:
         print(f'파일 접근 오류: {error}', file=sys.stderr)
@@ -185,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         if interactive:
             try:
-                input('Enter를 누르면 종료합니다...')
+                input('계속하려면 Enter를 누르세요 . . .')
             except (EOFError, KeyboardInterrupt):
                 pass
     return result

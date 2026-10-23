@@ -6,7 +6,7 @@ from pathlib import Path
 from .patch import ROOT, FILES, CompatibilityError, game_root, read_json, digest, verify_sources
 
 
-def materialize(game: Path, output: Path, manifest: Path):
+def materialize(game: Path, output: Path, manifest: Path, *, quiet: bool = False):
     game = game_root(game)
     output = output.resolve()
     if output == game or game in output.parents or output in game.parents:
@@ -32,7 +32,8 @@ def materialize(game: Path, output: Path, manifest: Path):
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
     verify_sources(output, expected)
-    print(f'원본 입력 사본 생성 완료: {output}')
+    if not quiet:
+        print(f'원본 입력 사본 생성 완료: {output}')
 
 
 if __name__ == '__main__':

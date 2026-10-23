@@ -72,6 +72,38 @@ class ReleaseResourceTests(unittest.TestCase):
 
 
 class RuntimePatcherTests(unittest.TestCase):
+    def test_preview_never_searches_or_modifies_game(self):
+        with patch.object(runtime_patcher, 'find_game') as find, \
+                patch.object(runtime_patcher, 'run_patch') as run, \
+                patch('sys.stdout', new_callable=io.StringIO) as output:
+            self.assertEqual(runtime_patcher.main(['--preview']), 0)
+            find.assert_not_called()
+            run.assert_not_called()
+            self.assertIn('[4/4]', output.getvalue())
+
+    def test_declining_intro_never_starts_install(self):
+        with patch.object(runtime_patcher, 'read_confirmation', return_value='2'), \
+                patch.object(runtime_patcher, 'find_game') as find, \
+                patch.object(runtime_patcher, 'run_patch') as run, \
+                patch('builtins.input', return_value=''), \
+                patch('sys.stdout', new_callable=io.StringIO):
+            self.assertEqual(runtime_patcher.main([]), 0)
+            find.assert_not_called()
+            run.assert_not_called()
+
+    def test_restore_menu_only_restores(self):
+        with patch.object(runtime_patcher, 'read_confirmation', return_value='1'), \
+                patch.object(runtime_patcher, 'normalize_game', return_value=Path('game')), \
+                patch.object(runtime_patcher, 'check_game_closed'), \
+                patch.object(runtime_patcher.installer, 'restore') as restore, \
+                patch.object(runtime_patcher, 'run_patch') as run, \
+                patch('builtins.input', side_effect=['2', '']), \
+                patch('sys.stdout', new_callable=io.StringIO):
+            self.assertEqual(runtime_patcher.main(['--game', 'game']), 0)
+            self.assertEqual(restore.call_args_list[0].kwargs, {'apply': False})
+            self.assertEqual(restore.call_args_list[1].kwargs, {'apply': True})
+            run.assert_not_called()
+
     def test_permission_error_reports_the_actual_path(self):
         error = PermissionError(13, 'Access denied', 'temporary-source.bundle')
         with patch.object(runtime_patcher, 'normalize_game', return_value=Path('game')), \
