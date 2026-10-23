@@ -1,0 +1,14 @@
+{
+  "format": 1,
+  "files": {
+    "Carpenter_Data/StreamingAssets/aa/StandaloneWindows64/localization-string-tables-english(en)_assets_all.bundle": "62ac358a59063a9a38b9987a68b6f45fb5dcb8cdf5b851119772c54c8502af9a",
+    "Carpenter_Data/StreamingAssets/aa/StandaloneWindows64/localization-assets-shared_assets_all.bundle": "1ba1447712f598613784fb0fe9d27e444f5a1680f81e7f955fc22851e8a5ca30",
+    "Carpenter_Data/StreamingAssets/aa/StandaloneWindows64/localization-string-tables-chinese(traditional)(zh-hant)_assets_all.bundle": "ad1fd9a61b8fe93ffa3eced7bc4c63cee1d55ae90c8a56c47e325caaf277a760",
+    "Carpenter_Data/StreamingAssets/aa/StandaloneWindows64/fonts-traditional-chinese_assets_all.bundle": "4c64a488e215a936c074ff7092a748d7a0bf87ba6bbc91ed9d1b8048c86e3f83",
+    "Carpenter_Data/StreamingAssets/aa/StandaloneWindows64/localization-locales_assets_all.bundle": "57469fb1ebb4ea9d5064a8beefe561bdb1b86380162534fc45d2f8e9fe80f1e3",
+    "Carpenter_Data/StreamingAssets/aa/StandaloneWindows64/localization-asset-tables-chinese(traditional)(zh-hant)_assets_all.bundle": "b54b242385e2a02240e6d6f733a59deb46a6ab566aa6f0efc0c44ee3e7edf421",
+    "Carpenter_Data/StreamingAssets/aa/catalog.bin": "934134d9aba43bd7afe21ac674bfb37404b1dcd6abf0b761d84f6842a8532a78",
+    "Carpenter_Data/StreamingAssets/aa/catalog.hash": "91003e7db007e49334ceabb9ccca2ba6e60778f42584fbf210f7bf71c3c4c9d4",
+    "Carpenter_Data/StreamingAssets/aa/settings.json": "29d8b4367f1c2a6d56b8b656208bda97b3f23876f5827c4ef272776b2a1619da"
+  }
+}

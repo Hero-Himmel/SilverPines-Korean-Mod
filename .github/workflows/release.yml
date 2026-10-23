@@ -1,0 +1,108 @@
+name: Release Korean Patch
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      release: ${{ steps.metadata.outputs.release }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-release.txt
+
+      - name: Install release build dependencies
+        run: python -m pip install -r requirements-release.txt
+
+      - name: Run tests without game files
+        run: python -m unittest discover -s test -v
+
+      - name: Validate release resources and version
+        id: metadata
+        run: python -m tool.release_config --validate --github-output "$env:GITHUB_OUTPUT"
+
+      - name: Check release tag
+        env:
+          RELEASE_VERSION: ${{ steps.metadata.outputs.release }}
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$env:RELEASE_VERSION") {
+            throw 'Git tag must match resource/version.json release.'
+          }
+
+      - name: Build runtime patcher ZIP and SHA-256
+        run: python -m tool.package_release
+
+      - name: Verify ZIP, embedded files, and executable startup
+        run: python -m tool.verify_release
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: silverpines-korean-windows
+          if-no-files-found: error
+          path: |
+            artifacts/release/*.zip
+            artifacts/release/*.zip.sha256
+
+  release:
+    needs: build
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download verified artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: silverpines-korean-windows
+          path: artifacts/release
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.release }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          tag="v$RELEASE_VERSION"
+          files=(artifacts/release/*.zip artifacts/release/*.zip.sha256)
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            flags=()
+            if [[ "$PRERELEASE" == 'true' ]]; then
+              flags+=(--prerelease)
+            fi
+            gh release create "$tag" "${files[@]}" \
+              --target "$GITHUB_SHA" \
+              --title "Silver Pines Korean Patch $RELEASE_VERSION" \
+              --generate-notes "${flags[@]}"
+          fi
